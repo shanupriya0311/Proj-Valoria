@@ -6,11 +6,9 @@ import {
   User,
   Briefcase,
   FileCode2,
-  CheckCircle2,
   ArrowRight,
   Loader2,
   ExternalLink,
-  ShieldCheck,
   Cpu,
   Layers,
   Calendar,
@@ -18,8 +16,6 @@ import {
   Zap,
   Server,
   Lock,
-  Copy,
-  Check,
   Terminal,
   ArrowLeft,
 } from 'lucide-react';
@@ -207,12 +203,8 @@ export function ConnectSection({ standalone = false }: ConnectSectionProps = {})
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [inquiryResult, setInquiryResult] = useState<{
-    inquiryNumber: string;
-    message: string;
-  } | null>(null);
+  const [inquiryResult, setInquiryResult] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isCopied, setIsCopied] = useState(false);
 
   // Lock document body scroll when Let's Connect overlay is open (in embedded mode)
   useEffect(() => {
@@ -293,52 +285,19 @@ export function ConnectSection({ standalone = false }: ConnectSectionProps = {})
         body: JSON.stringify(formData),
       });
 
-      const data = await res.json();
+      const data: { success?: unknown } = await res.json();
 
-      if (data.success) {
-        setInquiryResult({
-          inquiryNumber: data.inquiryNumber || 'INQ-SUCCESS',
-          message: data.message || 'Inquiry registered directly in Valoria Salesforce Hub.',
-        });
+      if (res.ok && data.success === true) {
+        setInquiryResult(true);
       } else {
-        setErrorMessage(data.message || 'Failed to submit inquiry. Please try again.');
+        setErrorMessage('Something went wrong. Please try again.');
       }
     } catch (err: unknown) {
       console.error('Submission error:', err);
-      setErrorMessage('Could not send your inquiry. Please try again later.');
+      setErrorMessage('Something went wrong. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleCopyTicket = () => {
-    if (inquiryResult?.inquiryNumber) {
-      navigator.clipboard.writeText(inquiryResult.inquiryNumber);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    }
-  };
-
-  const handleResetForm = () => {
-    setInquiryResult(null);
-    setErrorMessage(null);
-    setFormData({
-      fullName: '',
-      email: '',
-      phone: '',
-      jobTitle: '',
-      companyName: '',
-      companyWebsite: '',
-      companySize: COMPANY_SIZES[1],
-      industry: INDUSTRIES[0],
-      primaryInterest: TECH_TRACKS[0].id,
-      projectTimeline: TIMELINES[1].value,
-      budgetRange: BUDGETS[1].value,
-      projectScope: '',
-      existingTechStack: '',
-      preferredDeployment: 'Cloud (AWS / GCP / Azure)',
-      consentAgreed: false,
-    });
   };
 
   return (
@@ -465,100 +424,27 @@ export function ConnectSection({ standalone = false }: ConnectSectionProps = {})
             {/* SPATIAL INTAKE ARCHITECTURE: BALANCED MULTI-QUADRANT LAYOUT    */}
             {/* -------------------------------------------------------------- */}
             {inquiryResult ? (
-              /* Success Screen (Cryptographic Reference Ticket) */
               <motion.div
-                initial={{ opacity: 0, scale: 0.98, y: 14 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 26 }}
-                className="rounded-3xl border border-white/[0.09] bg-[#090b10]/90 p-8 sm:p-14 text-center backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.08)] max-w-2xl mx-auto my-8"
+                transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+                className="mx-auto my-8 flex max-w-2xl flex-col items-center gap-6 rounded-3xl border border-white/[0.09] bg-[#090b10]/90 p-8 text-center shadow-[0_24px_80px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl sm:p-14"
               >
-                <div className="group relative mb-6 mx-auto w-fit">
-                  <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute -inset-2 rounded-full bg-emerald-500/15 blur-xl"
-                  />
-                  <div className="relative flex size-16 items-center justify-center rounded-2xl border border-white/[0.12] bg-gradient-to-b from-[#21242b] via-[#16181f] to-[#0f1014] text-emerald-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_0_24px_rgba(16,185,129,0.18)]">
-                    <CheckCircle2 className="size-8 stroke-[2.2]" />
-                  </div>
-                </div>
-
-                <span className="font-mono text-[11px] uppercase tracking-widest text-emerald-400 mb-1.5 inline-block">
-                  Transmitted to Salesforce
-                </span>
-                <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-2">
-                  Inquiry Successfully Logged
-                </h3>
-                <p className="max-w-md mx-auto text-xs sm:text-sm text-zinc-400 leading-relaxed mb-8">
-                  Your partnership proposal has been synced directly to the Valoria Salesforce Enterprise Hub. An engineering lead will review your requirements and reach out within 24 hours.
+                <p className="text-base font-medium leading-relaxed text-zinc-100 sm:text-lg" role="status" aria-live="polite">
+                  Your inquiry has been submitted successfully!
                 </p>
 
-                {/* Cryptographic Ticket Card */}
-                <div className="w-full rounded-2xl border border-white/[0.09] bg-[#0c0e14]/90 p-5 text-left font-mono text-xs mb-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                  <div className="flex justify-between items-center pb-3 border-b border-white/[0.06]">
-                    <span className="text-zinc-500">REFERENCE TICKET:</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-white font-bold tracking-wider text-sm">{inquiryResult.inquiryNumber}</span>
-                      <button
-                        type="button"
-                        onClick={handleCopyTicket}
-                        title="Copy Reference Number"
-                        className="p-1 rounded-md border border-white/[0.08] bg-white/[0.04] text-zinc-400 hover:text-white hover:border-white/20 transition-colors"
-                      >
-                        {isCopied ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-center py-2.5 border-b border-white/[0.06]">
-                    <span className="text-zinc-500">ORGANIZATION:</span>
-                    <span className="text-zinc-200 font-sans font-medium">{formData.companyName}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center py-2.5 border-b border-white/[0.06]">
-                    <span className="text-zinc-500">PRIMARY TRACK:</span>
-                    <span className="text-zinc-200 font-sans font-medium truncate max-w-[260px]">
-                      {formData.primaryInterest}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center pt-3 text-[11px]">
-                    <span className="text-zinc-500">HUB STATUS:</span>
-                    <span className="text-emerald-400 font-semibold uppercase flex items-center gap-1.5">
-                      <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      <span>Synchronized with Salesforce</span>
-                    </span>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex flex-wrap items-center justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleResetForm}
-                    className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-2.5 text-xs font-semibold text-black shadow-[0_4px_16px_rgba(255,255,255,0.15)] transition-all hover:bg-neutral-200 active:scale-[0.98]"
-                  >
-                    Submit Another Proposal
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleReturn}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.05] px-6 py-2.5 text-xs font-medium text-zinc-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
-                  >
-                    Done
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleReturn}
+                  className="inline-flex items-center rounded-full border border-white/[0.1] bg-white/[0.05] px-6 py-2.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  Done
+                </button>
               </motion.div>
             ) : (
               /* Non-Linear Spatially Balanced Intake Grid */
               <form onSubmit={handleSubmit} className="space-y-12">
-                {errorMessage && (
-                  <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-300 text-xs flex items-center gap-3 shadow-[0_0_24px_rgba(239,68,68,0.1)]">
-                    <ShieldCheck className="size-4 shrink-0 text-red-400" />
-                    <span>{errorMessage}</span>
-                  </div>
-                )}
-
                 {/* 2-Column Balanced Grid (Left Wing & Right Wing) */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-start">
                   
@@ -977,6 +863,12 @@ export function ConnectSection({ standalone = false }: ConnectSectionProps = {})
                       </button>
                     </div>
                   </div>
+
+                  {errorMessage && (
+                    <p className="mt-4 text-center text-sm text-rose-300" role="alert" aria-live="assertive">
+                      {errorMessage}
+                    </p>
+                  )}
                 </div>
               </form>
             )}

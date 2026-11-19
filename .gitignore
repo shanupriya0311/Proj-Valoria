@@ -41,3 +41,11 @@ Sample Video.mov
 # external archives / temporary packages
 impeccable-main/
 
+
+# OpenNext
+.open-next
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example

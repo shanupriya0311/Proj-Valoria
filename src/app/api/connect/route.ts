@@ -1,90 +1,155 @@
-import { execSync } from 'child_process';
-import nodemailer from 'nodemailer';
+
 import { NextResponse } from 'next/server';
 
-const INQUIRY_RECIPIENT = 'valoriatechnology@gmail.com';
 const SALESFORCE_INSTANCE_URL =
-  'https://orgfarm-5c6f02648d-dev-ed.develop.my.salesforce.com';
-let cachedSalesforceToken: string | null = null;
-let salesforceTokenExpiresAt = 0;
+  process.env.SALESFORCE_INSTANCE_URL?.trim().replace(/\/+$/, '');
+
+const SALESFORCE_CONSUMER_KEY =
+  process.env.SALESFORCE_CONSUMER_KEY?.trim();
+
+const SALESFORCE_CONSUMER_SECRET =
+  process.env.SALESFORCE_CONSUMER_SECRET?.trim();
 
 type RequestBody = Record<string, unknown>;
 
+type SalesforceTokenResponse = {
+  access_token?: string;
+  instance_url?: string;
+  error?: string;
+  error_description?: string;
+};
+
+let cachedToken: string | null = null;
+let cachedInstanceUrl: string | null = null;
+let tokenExpiresAt = 0;
+
 function isRequestBody(value: unknown): value is RequestBody {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value)
+  );
 }
 
-function readTextField(body: RequestBody, field: string, maxLength: number): string | null {
+function readTextField(
+  body: RequestBody,
+  field: string,
+  maxLength: number
+): string | null {
   const value = body[field];
+
   if (value === undefined) return '';
   if (typeof value !== 'string') return null;
 
-  const trimmedValue = value.trim();
-  return trimmedValue.length <= maxLength ? trimmedValue : null;
+  const trimmed = value.trim();
+
+  return trimmed.length <= maxLength ? trimmed : null;
 }
 
-function getSalesforceAccessToken(): string | null {
-  const now = Date.now();
-  if (cachedSalesforceToken && now < salesforceTokenExpiresAt) {
-    return cachedSalesforceToken;
+// Get Salesforce OAuth access token
+async function getSalesforceAccessToken(): Promise<{
+  token: string;
+  instanceUrl: string;
+} | null> {
+  if (
+    cachedToken &&
+    cachedInstanceUrl &&
+    Date.now() < tokenExpiresAt
+  ) {
+    return {
+      token: cachedToken,
+      instanceUrl: cachedInstanceUrl,
+    };
+  }
+
+  if (
+    !SALESFORCE_INSTANCE_URL ||
+    !SALESFORCE_CONSUMER_KEY ||
+    !SALESFORCE_CONSUMER_SECRET
+  ) {
+    console.error('[Salesforce] Missing environment variables.');
+    return null;
   }
 
   try {
-    const raw = execSync(
-      '/usr/local/bin/sf org auth show-access-token --target-org Valoria-Org --json',
-      {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-        env: {
-          ...process.env,
-          NO_COLOR: '1',
-          FORCE_COLOR: '0',
-          HOME: process.env.HOME || '/Users/varunshiyam',
-          PATH: `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin`,
-        },
-      }
-    );
+    const tokenUrl =
+      `${SALESFORCE_INSTANCE_URL}/services/oauth2/token`;
 
-    const clean = raw.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').trim();
-    const jsonStart = clean.indexOf('{');
-    const jsonEnd = clean.lastIndexOf('}');
-    if (jsonStart !== -1 && jsonEnd !== -1) {
-      const parsed = JSON.parse(clean.slice(jsonStart, jsonEnd + 1));
-      const token = parsed?.result?.accessToken;
-      if (token) {
-        cachedSalesforceToken = token;
-        salesforceTokenExpiresAt = now + 1000 * 60 * 25;
-        return cachedSalesforceToken;
-      }
+    const params = new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: SALESFORCE_CONSUMER_KEY,
+      client_secret: SALESFORCE_CONSUMER_SECRET,
+    });
+
+    const response = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    });
+
+    const data =
+      await response.json() as SalesforceTokenResponse;
+
+    if (!response.ok || !data.access_token) {
+      console.error('[Salesforce] Authentication failed:', {
+        status: response.status,
+        error: data.error,
+        description: data.error_description,
+      });
+
+      return null;
     }
-  } catch (error: unknown) {
-    console.warn(
-      '[Salesforce CLI Bridge] Could not get access token:',
-      error instanceof Error ? error.message : 'Unknown error'
-    );
-  }
 
-  return null;
+    cachedToken = data.access_token;
+    cachedInstanceUrl =
+      (data.instance_url || SALESFORCE_INSTANCE_URL).replace(/\/+$/, '');
+
+    tokenExpiresAt = Date.now() + 50 * 60 * 1000;
+
+    console.log('[Salesforce] Authentication successful.');
+
+    return {
+      token: cachedToken,
+      instanceUrl: cachedInstanceUrl,
+    };
+  } catch (error) {
+    console.error('[Salesforce] Token request failed:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+
+    return null;
+  }
 }
 
 export async function POST(request: Request) {
+  // 1. Parse request
   let body: unknown;
+
   try {
     body = await request.json();
   } catch {
     return NextResponse.json(
-      { success: false, message: 'Please submit a valid inquiry.' },
+      {
+        success: false,
+        message: 'Please submit a valid inquiry.',
+      },
       { status: 400 }
     );
   }
 
   if (!isRequestBody(body)) {
     return NextResponse.json(
-      { success: false, message: 'Please submit a valid inquiry.' },
+      {
+        success: false,
+        message: 'Please submit a valid inquiry.',
+      },
       { status: 400 }
     );
   }
 
+  // 2. Read form fields
   const fullName = readTextField(body, 'fullName', 200);
   const email = readTextField(body, 'email', 254);
   const phone = readTextField(body, 'phone', 100);
@@ -100,6 +165,7 @@ export async function POST(request: Request) {
   const existingTechStack = readTextField(body, 'existingTechStack', 2000);
   const preferredDeployment = readTextField(body, 'preferredDeployment', 500);
 
+  // 3. Validate fields
   if (
     fullName === null ||
     email === null ||
@@ -117,7 +183,10 @@ export async function POST(request: Request) {
     preferredDeployment === null
   ) {
     return NextResponse.json(
-      { success: false, message: 'One or more inquiry fields are invalid.' },
+      {
+        success: false,
+        message: 'One or more inquiry fields are invalid.',
+      },
       { status: 400 }
     );
   }
@@ -130,109 +199,111 @@ export async function POST(request: Request) {
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   ) {
     return NextResponse.json(
-      { success: false, message: 'Please provide your name, a valid work email, company, and project scope.' },
+      {
+        success: false,
+        message:
+          'Please provide your name, a valid work email, company, and project scope.',
+      },
       { status: 400 }
     );
   }
 
-  const gmailAppPassword = process.env.GMAIL_APP_PASSWORD?.replace(/\s/g, '');
-  if (!gmailAppPassword) {
-    console.error('[Connect API] GMAIL_APP_PASSWORD is not configured.');
+  // 4. Authenticate with Salesforce
+  const auth = await getSalesforceAccessToken();
+
+  if (!auth) {
     return NextResponse.json(
-      { success: false, message: 'Inquiry email is not configured yet. Please try again later.' },
-      { status: 503 }
-    );
-  }
-
-  const inquiryNumber = `INQ-${Math.floor(10000 + Math.random() * 90000)}`;
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: INQUIRY_RECIPIENT,
-      pass: gmailAppPassword,
-    },
-  });
-
-  const emailText = [
-    'A new inquiry was submitted through the Valoria Technology website.',
-    '',
-    `Inquiry number: ${inquiryNumber}`,
-    `Full name: ${fullName}`,
-    `Work email: ${email}`,
-    `Phone: ${phone || 'Not provided'}`,
-    `Job title: ${jobTitle || 'Not provided'}`,
-    `Company: ${companyName}`,
-    `Company website: ${companyWebsite || 'Not provided'}`,
-    `Company size: ${companySize || 'Not provided'}`,
-    `Primary industry: ${industry || 'Not provided'}`,
-    `Core technology / engagement track: ${primaryInterest || 'Not provided'}`,
-    `Target schedule: ${projectTimeline || 'Not provided'}`,
-    `Investment scope: ${budgetRange || 'Not provided'}`,
-    `Existing technologies: ${existingTechStack || 'Not provided'}`,
-    `Preferred deployment: ${preferredDeployment || 'Not provided'}`,
-    '',
-    'Architecture and project scope:',
-    projectScope,
-  ].join('\n');
-
-  try {
-    await transporter.sendMail({
-      from: `Valoria Technology <${INQUIRY_RECIPIENT}>`,
-      to: INQUIRY_RECIPIENT,
-      replyTo: { name: fullName, address: email },
-      subject: `New Let's Connect inquiry (${inquiryNumber})`,
-      text: emailText,
-    });
-  } catch (error: unknown) {
-    console.error('[Connect API] Could not send inquiry email:', error);
-    return NextResponse.json(
-      { success: false, message: 'We could not send your inquiry right now. Please try again later.' },
+      {
+        success: false,
+        message: 'Salesforce authentication failed. Please try again later.',
+      },
       { status: 502 }
     );
   }
 
+  // 5. Prepare Salesforce record
+  const salesforcePayload = {
+    fullName,
+    email,
+    phone,
+    jobTitle,
+    companyName,
+    companyWebsite,
+    companySize,
+    industry,
+    primaryInterest,
+    projectTimeline,
+    budgetRange,
+    projectScope,
+    existingTechStack,
+    preferredDeployment,
+    source: 'Website - Lets Connect',
+  };
+
+  // 6. Create record using existing Apex REST endpoint
   try {
-    const token = getSalesforceAccessToken();
-    if (token) {
-      const sfResponse = await fetch(
-        `${SALESFORCE_INSTANCE_URL}/services/apexrest/valoria-inquiries/`,
+    const endpoint =
+      `${auth.instanceUrl}/services/apexrest/valoria-inquiries/`;
+
+    const sfResponse = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${auth.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(salesforcePayload),
+    });
+
+    const responseText = await sfResponse.text();
+
+    if (!sfResponse.ok) {
+      console.error('[Salesforce] Record creation failed:', {
+        status: sfResponse.status,
+        response: responseText.slice(0, 1000),
+      });
+
+      return NextResponse.json(
         {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            fullName,
-            email,
-            phone,
-            jobTitle,
-            companyName,
-            companyWebsite,
-            companySize,
-            industry,
-            primaryInterest,
-            projectTimeline,
-            budgetRange,
-            projectScope,
-            existingTechStack,
-            preferredDeployment,
-            source: 'Website - Lets Connect',
-          }),
-        }
+          success: false,
+          message: 'Unable to save your inquiry in Salesforce.',
+        },
+        { status: 502 }
       );
-
-      if (!sfResponse.ok) {
-        console.warn('[Salesforce Bridge] Non-OK response:', sfResponse.status);
-      }
     }
-  } catch (error: unknown) {
-    console.warn('[Salesforce Bridge] Inquiry could not be registered:', error);
-  }
 
-  return NextResponse.json({
-    success: true,
-    inquiryNumber,
-    message: 'Your inquiry has been emailed to Valoria Technology.',
-  });
+    let sfData: {
+      inquiryNumber?: string;
+      inquiryId?: string;
+    } = {};
+
+    try {
+      sfData = JSON.parse(responseText);
+    } catch {
+      console.log('[Salesforce] Record created; no JSON response returned.');
+    }
+
+    console.log('[Salesforce] Inquiry record created successfully.');
+
+    return NextResponse.json(
+      {
+        success: true,
+        inquiryNumber: sfData.inquiryNumber || null,
+        inquiryId: sfData.inquiryId || null,
+        message: 'Your inquiry has been successfully submitted.',
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error('[Salesforce] Record creation error:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Unable to connect to Salesforce. Please try again later.',
+      },
+      { status: 502 }
+    );
+  }
 }

@@ -1,11 +1,13 @@
+
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
   allowedDevOrigins: ["10.96.123.143"],
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+
+  // Disable Cache Components for Cloudflare compatibility
+  cacheComponents: false,
+
   turbopack: {
     rules: {
       "*.css": {
