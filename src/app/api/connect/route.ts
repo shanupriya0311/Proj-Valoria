@@ -1,14 +1,11 @@
-
+import { execSync } from 'child_process';
+import nodemailer from 'nodemailer';
 import { NextResponse } from 'next/server';
 
 const SALESFORCE_INSTANCE_URL =
-  process.env.SALESFORCE_INSTANCE_URL?.trim().replace(/\/+$/, '');
-
-const SALESFORCE_CONSUMER_KEY =
-  process.env.SALESFORCE_CONSUMER_KEY?.trim();
-
-const SALESFORCE_CONSUMER_SECRET =
-  process.env.SALESFORCE_CONSUMER_SECRET?.trim();
+  'https://orgfarm-5c6f02648d-dev-ed.develop.my.salesforce.com';
+let cachedSalesforceToken: string | null = null;
+let salesforceTokenExpiresAt = 0;
 
 type RequestBody = Record<string, unknown>;
 
@@ -46,58 +43,46 @@ function readTextField(
   return trimmed.length <= maxLength ? trimmed : null;
 }
 
-// Get Salesforce OAuth access token
-async function getSalesforceAccessToken(): Promise<{
-  token: string;
-  instanceUrl: string;
-} | null> {
-  if (
-    cachedToken &&
-    cachedInstanceUrl &&
-    Date.now() < tokenExpiresAt
-  ) {
-    return {
-      token: cachedToken,
-      instanceUrl: cachedInstanceUrl,
-    };
-  }
-
-  if (
-    !SALESFORCE_INSTANCE_URL ||
-    !SALESFORCE_CONSUMER_KEY ||
-    !SALESFORCE_CONSUMER_SECRET
-  ) {
-    console.error('[Salesforce] Missing environment variables.');
-    return null;
+function getSalesforceAccessToken(): string | null {
+  const now = Date.now();
+  if (cachedSalesforceToken && now < salesforceTokenExpiresAt) {
+    return cachedSalesforceToken;
   }
 
   try {
-    const tokenUrl =
-      `${SALESFORCE_INSTANCE_URL}/services/oauth2/token`;
+    const raw = execSync(
+      '/usr/local/bin/sf org auth show-access-token --target-org Valoria-Org --json',
+      {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        env: {
+          ...process.env,
+          NO_COLOR: '1',
+          FORCE_COLOR: '0',
+          HOME: process.env.HOME || '/Users/varunshiyam',
+          PATH: `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin`,
+        },
+      }
+    );
 
-    const params = new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: SALESFORCE_CONSUMER_KEY,
-      client_secret: SALESFORCE_CONSUMER_SECRET,
-    });
-
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: params.toString(),
-    });
-
-    const data =
-      await response.json() as SalesforceTokenResponse;
-
-    if (!response.ok || !data.access_token) {
-      console.error('[Salesforce] Authentication failed:', {
-        status: response.status,
-        error: data.error,
-        description: data.error_description,
-      });
+    const clean = raw.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').trim();
+    const jsonStart = clean.indexOf('{');
+    const jsonEnd = clean.lastIndexOf('}');
+    if (jsonStart !== -1 && jsonEnd !== -1) {
+      const parsed = JSON.parse(clean.slice(jsonStart, jsonEnd + 1));
+      const token = parsed?.result?.accessToken;
+      if (token) {
+        cachedSalesforceToken = token;
+        salesforceTokenExpiresAt = now + 1000 * 60 * 25;
+        return cachedSalesforceToken;
+      }
+    }
+  } catch (error: unknown) {
+    console.warn(
+      '[Salesforce CLI Bridge] Could not get access token:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
+  }
 
       return null;
     }
@@ -199,111 +184,109 @@ export async function POST(request: Request) {
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   ) {
     return NextResponse.json(
-      {
-        success: false,
-        message:
-          'Please provide your name, a valid work email, company, and project scope.',
-      },
+      { success: false, message: 'Please provide your name, a valid work email, company, and project scope.' },
       { status: 400 }
     );
   }
 
-  // 4. Authenticate with Salesforce
-  const auth = await getSalesforceAccessToken();
-
-  if (!auth) {
+  const gmailAppPassword = process.env.GMAIL_APP_PASSWORD?.replace(/\s/g, '');
+  if (!gmailAppPassword) {
+    console.error('[Connect API] GMAIL_APP_PASSWORD is not configured.');
     return NextResponse.json(
-      {
-        success: false,
-        message: 'Salesforce authentication failed. Please try again later.',
-      },
-      { status: 502 }
+      { success: false, message: 'Inquiry email is not configured yet. Please try again later.' },
+      { status: 503 }
     );
   }
 
-  // 5. Prepare Salesforce record
-  const salesforcePayload = {
-    fullName,
-    email,
-    phone,
-    jobTitle,
-    companyName,
-    companyWebsite,
-    companySize,
-    industry,
-    primaryInterest,
-    projectTimeline,
-    budgetRange,
+  const inquiryNumber = `INQ-${Math.floor(10000 + Math.random() * 90000)}`;
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: INQUIRY_RECIPIENT,
+      pass: gmailAppPassword,
+    },
+  });
+
+  const emailText = [
+    'A new inquiry was submitted through the Valoria Technology website.',
+    '',
+    `Inquiry number: ${inquiryNumber}`,
+    `Full name: ${fullName}`,
+    `Work email: ${email}`,
+    `Phone: ${phone || 'Not provided'}`,
+    `Job title: ${jobTitle || 'Not provided'}`,
+    `Company: ${companyName}`,
+    `Company website: ${companyWebsite || 'Not provided'}`,
+    `Company size: ${companySize || 'Not provided'}`,
+    `Primary industry: ${industry || 'Not provided'}`,
+    `Core technology / engagement track: ${primaryInterest || 'Not provided'}`,
+    `Target schedule: ${projectTimeline || 'Not provided'}`,
+    `Investment scope: ${budgetRange || 'Not provided'}`,
+    `Existing technologies: ${existingTechStack || 'Not provided'}`,
+    `Preferred deployment: ${preferredDeployment || 'Not provided'}`,
+    '',
+    'Architecture and project scope:',
     projectScope,
-    existingTechStack,
-    preferredDeployment,
-    source: 'Website - Lets Connect',
-  };
+  ].join('\n');
 
-  // 6. Create record using existing Apex REST endpoint
   try {
-    const endpoint =
-      `${auth.instanceUrl}/services/apexrest/valoria-inquiries/`;
-
-    const sfResponse = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${auth.token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(salesforcePayload),
+    await transporter.sendMail({
+      from: `Valoria Technology <${INQUIRY_RECIPIENT}>`,
+      to: INQUIRY_RECIPIENT,
+      replyTo: { name: fullName, address: email },
+      subject: `New Let's Connect inquiry (${inquiryNumber})`,
+      text: emailText,
     });
-
-    const responseText = await sfResponse.text();
-
-    if (!sfResponse.ok) {
-      console.error('[Salesforce] Record creation failed:', {
-        status: sfResponse.status,
-        response: responseText.slice(0, 1000),
-      });
-
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Unable to save your inquiry in Salesforce.',
-        },
-        { status: 502 }
-      );
-    }
-
-    let sfData: {
-      inquiryNumber?: string;
-      inquiryId?: string;
-    } = {};
-
-    try {
-      sfData = JSON.parse(responseText);
-    } catch {
-      console.log('[Salesforce] Record created; no JSON response returned.');
-    }
-
-    console.log('[Salesforce] Inquiry record created successfully.');
-
+  } catch (error: unknown) {
+    console.error('[Connect API] Could not send inquiry email:', error);
     return NextResponse.json(
-      {
-        success: true,
-        inquiryNumber: sfData.inquiryNumber || null,
-        inquiryId: sfData.inquiryId || null,
-        message: 'Your inquiry has been successfully submitted.',
-      },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error('[Salesforce] Record creation error:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
-
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Unable to connect to Salesforce. Please try again later.',
-      },
+      { success: false, message: 'We could not send your inquiry right now. Please try again later.' },
       { status: 502 }
     );
   }
+
+  try {
+    const token = getSalesforceAccessToken();
+    if (token) {
+      const sfResponse = await fetch(
+        `${SALESFORCE_INSTANCE_URL}/services/apexrest/valoria-inquiries/`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fullName,
+            email,
+            phone,
+            jobTitle,
+            companyName,
+            companyWebsite,
+            companySize,
+            industry,
+            primaryInterest,
+            projectTimeline,
+            budgetRange,
+            projectScope,
+            existingTechStack,
+            preferredDeployment,
+            source: 'Website - Lets Connect',
+          }),
+        }
+      );
+
+      if (!sfResponse.ok) {
+        console.warn('[Salesforce Bridge] Non-OK response:', sfResponse.status);
+      }
+    }
+  } catch (error: unknown) {
+    console.warn('[Salesforce Bridge] Inquiry could not be registered:', error);
+  }
+
+  return NextResponse.json({
+    success: true,
+    inquiryNumber,
+    message: 'Your inquiry has been emailed to Valoria Technology.',
+  });
 }
