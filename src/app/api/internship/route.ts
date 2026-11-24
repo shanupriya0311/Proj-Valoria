@@ -15,7 +15,6 @@ type ApplicationPayload = {
   District: string;
   CollegeName: string;
   Department: string;
-  
 };
 
 function isApplicationPayload(
@@ -86,7 +85,7 @@ export async function POST(request: Request) {
       State: payload.State.trim(),
       District: payload.District.trim(),
       CollegeName: payload.CollegeName.trim(),
-      Department: payload.Department.trim(),  
+      Department: payload.Department.trim(),
     };
 
     // 4. Validate required fields
@@ -98,6 +97,10 @@ export async function POST(request: Request) {
       !studentData.Phone ||
       !studentData.Degree ||
       !studentData.Course ||
+      !studentData.State ||
+      !studentData.District ||
+      !studentData.CollegeName ||
+      !studentData.Department ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(studentData.email)
     ) {
       return NextResponse.json(
@@ -236,39 +239,11 @@ export async function POST(request: Request) {
     });
 
     // 9. Insert application into Students table
+<<<<<<< HEAD
    // 9. Insert application into Students table
-   console.log('[Internship] Values received from frontend:', {
-  State: payload.State,
-  District: payload.District,
-  CollegeName: payload.CollegeName,
-  Department: payload.Department,
-});
-
-console.log('[Internship] Values being inserted:', {
-  State: studentData.State,
-  District: studentData.District,
-  CollegeName: studentData.CollegeName,
-  Department: studentData.Department,
-});
-// Log all values being inserted into Supabase
-console.log('[Internship] INSERTING STUDENT DATA:', {
-  Firstname: studentData.Firstname,
-  Lastname: studentData.Lastname,
-  email: studentData.email,
-  Phone: studentData.Phone,
-  Degree: studentData.Degree,
-  Course: studentData.Course,
-  YOG: studentData.YOG,
-  State: studentData.State,
-  District: studentData.District,
-  CollegeName: studentData.CollegeName,
-  Department: studentData.Department,
-});
 const { data, error } = await supabase
 
   .from('Students')
-  // Log all values being inserted into Supabase
-   
   .insert(studentData)
   .select(`
     Firstname,
@@ -284,13 +259,14 @@ const { data, error } = await supabase
     Department
   `)
   .single();
-  // Log values returned by Supabase after insertion
-console.log('[Internship] INSERTED DATA FROM SUPABASE:', {
-  State: data?.State,
-  District: data?.District,
-  CollegeName: data?.CollegeName,
-  Department: data?.Department,
-});
+=======
+    const { data, error } = await supabase
+      .from('Students')
+      .insert(studentData)
+      .select('Firstname, Lastname, email, Phone, Degree, Course, YOG')
+      .single();
+
+>>>>>>> origin/main
     // 10. Handle database errors
     if (error) {
       console.error('[Internship] Supabase database error:', {
@@ -299,7 +275,7 @@ console.log('[Internship] INSERTED DATA FROM SUPABASE:', {
         details: error.details,
         hint: error.hint,
       });
-console.log("DATA RECEIVED BY API:", studentData);
+
       if (error.code === '23505') {
         return NextResponse.json(
           {
@@ -320,7 +296,7 @@ console.log("DATA RECEIVED BY API:", studentData);
       );
     }
 
-    // 11. Successful insertion
+    // 12. Successful insertion
     console.log('[Internship] Application successfully saved.');
 
     return NextResponse.json(
@@ -331,6 +307,7 @@ console.log("DATA RECEIVED BY API:", studentData);
       },
       { status: 201 }
     );
+
   } catch (error) {
     console.error('[Internship] Unexpected server error:', {
       name: error instanceof Error ? error.name : 'UnknownError',

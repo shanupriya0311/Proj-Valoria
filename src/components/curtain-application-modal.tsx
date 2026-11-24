@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
@@ -23,10 +22,6 @@ import { ValoriaLogo } from '@/components/valoria-logo';
 import { IndiaStateMap } from '@/components/india-state-map';
 import { LegalModal } from '@/components/legal-modal';
 import { cn } from '@/lib/utils';
-
-// ============================================================================
-// DATA: DEGREES & ENGINEERING TRACKS
-// ============================================================================
 
 export interface DegreeOption {
   id: string;
@@ -108,9 +103,6 @@ export const ENGINEERING_TRACKS: string[] = [
 
 const GRADUATION_YEARS = ['2027', '2028', '2029', '2030'];
 
-// ============================================================================
-// 3D CIRCULAR ROTATING CYLINDER PICKER FOR DEGREES
-// ============================================================================
 interface CircularDegreePickerProps {
   selectedDegree: string;
   onSelectDegree: (degree: string) => void;
@@ -184,8 +176,6 @@ function CircularDegreePicker({
           : e.deltaMode === 2
           ? e.deltaY * 100
           : e.deltaY;
-
-      // Clamp per-event delta so fast trackpad flicks feel weighted and never skip abruptly
       const clampedDelta = Math.max(-45, Math.min(45, rawDelta));
       let nextOffset = wheelOffsetRef.current + clampedDelta / PIXELS_PER_STEP;
 
@@ -266,16 +256,15 @@ function CircularDegreePicker({
         </div>
       </div>
 
-      {/* 3D Circular Rotary Stage (Mouse Wheel + Click Scrollable) */}
       <div
         ref={stageRef}
         className="relative h-44 w-full overflow-hidden rounded-xl bg-black/40 border border-white/[0.06] flex items-center justify-center select-none shadow-[inset_0_2px_8px_rgba(0,0,0,0.6)] overscroll-contain cursor-ns-resize"
         style={{ perspective: 900 }}
       >
-        {/* Optical Glass Center Bracket */}
+       
         <div className="pointer-events-none absolute inset-x-3 h-12 rounded-xl border border-white/20 bg-white/[0.06] shadow-[0_0_20px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.12)] z-0" />
 
-        {/* 3D Cylinder Rotating List */}
+        
         <div
           className="relative w-full h-full flex flex-col items-center justify-center"
           style={{ transformStyle: 'preserve-3d' }}
@@ -343,9 +332,6 @@ function CircularDegreePicker({
   );
 }
 
-// ============================================================================
-// ENGINEERING TRACK: TYPING & AUTO-FILLING DIRECTIONAL SLIDER
-// ============================================================================
 interface TrackAutofillSliderProps {
   value: string;
   onChange: (val: string) => void;
@@ -577,19 +563,11 @@ export function CurtainApplicationModal({
     const lastName = String(formData.get('lastName') || '').trim();
     const email = String(formData.get('email') || '').trim();
     const currentPhone = phone.trim();
-<<<<<<< HEAD
-    const password = String(formData.get('password') || '').trim();
-=======
->>>>>>> origin/main
     const currentCollege = collegeName.trim();
     const currentLocation = locationState.trim();
     const currentDistrict = district.trim();
     const currentDegree = degree.trim();
-<<<<<<< HEAD
     const currentDepartment = track.trim();
-=======
-
->>>>>>> origin/main
     // The selected internship program is stored in the Students.Course column.
     const internshipRole =
       applyingProgram === 'salesforce'
@@ -601,11 +579,8 @@ export function CurtainApplicationModal({
             : applyingProgram.toUpperCase();
 
     const gradYearNum = Number(graduationYear);
-<<<<<<< HEAD
    const resumeFile = formData.get('resume') as File | null;
-=======
-    const resumeFile = formData.get('resume') as File | null;
->>>>>>> origin/main
+
 
     if (
       !firstName ||
@@ -660,15 +635,11 @@ export function CurtainApplicationModal({
           password,
           Phone: currentPhone,
           Degree: currentDegree,
-<<<<<<< HEAD
           CollegeName: currentCollege,
           State: currentLocation,
           District: currentDistrict,
           Department: currentDepartment,
           Course: internshipRole,
-=======
-          course: internshipRole,
->>>>>>> origin/main
           YOG: gradYearNum,
         }),
       });
@@ -707,10 +678,6 @@ export function CurtainApplicationModal({
     } finally {
       setIsSubmitting(false);
     }
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/main
   };
 
   return (
@@ -1120,10 +1087,7 @@ export function CurtainApplicationModal({
               </div>
             </div>
 
-            {/* ===================================================================
-                MANDATORY POINT OF COLLECTION NOTICES & STATUTORY CONSENT
-                Authentic, high-craft compliance disclaimers prior to candidate submission
-            =================================================================== */}
+          
             <div className="mx-auto w-full max-w-6xl mt-6 rounded-2xl border border-white/[0.1] bg-[#0c0e17]/85 backdrop-blur-2xl p-5 sm:p-6 shadow-[0_12px_40px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.08)] flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3.5">
                 <div className="flex items-center gap-2.5">
