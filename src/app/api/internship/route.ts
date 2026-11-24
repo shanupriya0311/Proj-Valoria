@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
@@ -238,36 +237,41 @@ export async function POST(request: Request) {
       },
     });
 
-    // 9. Insert application into Students table
-<<<<<<< HEAD
-   // 9. Insert application into Students table
-const { data, error } = await supabase
+    // 9. Log received application data (never log the password)
+    console.log('[Internship] Application received:', {
+      Firstname: studentData.Firstname,
+      Lastname: studentData.Lastname,
+      email: studentData.email,
+      Phone: studentData.Phone,
+      Degree: studentData.Degree,
+      Course: studentData.Course,
+      YOG: studentData.YOG,
+      State: studentData.State,
+      District: studentData.District,
+      CollegeName: studentData.CollegeName,
+      Department: studentData.Department,
+    });
 
-  .from('Students')
-  .insert(studentData)
-  .select(`
-    Firstname,
-    Lastname,
-    email,
-    Phone,
-    Degree,
-    Course,
-    YOG,
-    State,
-    District,
-    CollegeName,
-    Department
-  `)
-  .single();
-=======
+    // 10. Insert application into Students table
     const { data, error } = await supabase
       .from('Students')
       .insert(studentData)
-      .select('Firstname, Lastname, email, Phone, Degree, Course, YOG')
+      .select(`
+        Firstname,
+        Lastname,
+        email,
+        Phone,
+        Degree,
+        Course,
+        YOG,
+        State,
+        District,
+        CollegeName,
+        Department
+      `)
       .single();
 
->>>>>>> origin/main
-    // 10. Handle database errors
+    // 11. Handle database errors
     if (error) {
       console.error('[Internship] Supabase database error:', {
         message: error.message,
