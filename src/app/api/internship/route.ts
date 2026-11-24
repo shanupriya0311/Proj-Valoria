@@ -9,6 +9,7 @@ type ApplicationPayload = {
   password: string;
   Phone: string;
   Degree: string;
+<<<<<<< HEAD
   Course: string;
   YOG: number;
   State: string;
@@ -16,6 +17,10 @@ type ApplicationPayload = {
   CollegeName: string;
   Department: string;
   
+=======
+  course: string;
+  YOG: number;
+>>>>>>> origin/main
 };
 
 function isApplicationPayload(
@@ -34,6 +39,7 @@ function isApplicationPayload(
     typeof payload.password === 'string' &&
     typeof payload.Phone === 'string' &&
     typeof payload.Degree === 'string' &&
+<<<<<<< HEAD
     typeof payload.Course === 'string' &&
     typeof payload.YOG === 'number' &&
     Number.isInteger(payload.YOG) &&
@@ -42,6 +48,12 @@ function isApplicationPayload(
     typeof payload.District === 'string' &&
     typeof payload.CollegeName === 'string' &&
     typeof payload.Department === 'string'
+=======
+    typeof payload.course === 'string' &&
+    typeof payload.YOG === 'number' &&
+    Number.isInteger(payload.YOG) &&
+    payload.YOG > 0
+>>>>>>> origin/main
   );
 }
 
@@ -81,12 +93,17 @@ export async function POST(request: Request) {
       password: payload.password,
       Phone: payload.Phone.trim(),
       Degree: payload.Degree.trim(),
+<<<<<<< HEAD
       Course: payload.Course.trim(),
       YOG: payload.YOG,
       State: payload.State.trim(),
       District: payload.District.trim(),
       CollegeName: payload.CollegeName.trim(),
       Department: payload.Department.trim(),  
+=======
+      Course: payload.course.trim(),
+      YOG: payload.YOG,
+>>>>>>> origin/main
     };
 
     // 4. Validate required fields
@@ -236,6 +253,7 @@ export async function POST(request: Request) {
     });
 
     // 9. Insert application into Students table
+<<<<<<< HEAD
    // 9. Insert application into Students table
 const { data, error } = await supabase
 
@@ -255,6 +273,14 @@ const { data, error } = await supabase
     Department
   `)
   .single();
+=======
+    const { data, error } = await supabase
+      .from('Students')
+      .insert(studentData)
+      .select('Firstname, Lastname, email, Phone, Degree, Course, YOG')
+      .single();
+
+>>>>>>> origin/main
     // 10. Handle database errors
     if (error) {
       console.error('[Internship] Supabase database error:', {
@@ -263,7 +289,11 @@ const { data, error } = await supabase
         details: error.details,
         hint: error.hint,
       });
+<<<<<<< HEAD
 console.log("DATA RECEIVED BY API:", studentData);
+=======
+
+>>>>>>> origin/main
       if (error.code === '23505') {
         return NextResponse.json(
           {

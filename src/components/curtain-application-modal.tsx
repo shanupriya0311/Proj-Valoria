@@ -577,12 +577,19 @@ export function CurtainApplicationModal({
     const lastName = String(formData.get('lastName') || '').trim();
     const email = String(formData.get('email') || '').trim();
     const currentPhone = phone.trim();
+<<<<<<< HEAD
     const password = String(formData.get('password') || '').trim();
+=======
+>>>>>>> origin/main
     const currentCollege = collegeName.trim();
     const currentLocation = locationState.trim();
     const currentDistrict = district.trim();
     const currentDegree = degree.trim();
+<<<<<<< HEAD
     const currentDepartment = track.trim();
+=======
+
+>>>>>>> origin/main
     // The selected internship program is stored in the Students.Course column.
     const internshipRole =
       applyingProgram === 'salesforce'
@@ -594,7 +601,11 @@ export function CurtainApplicationModal({
             : applyingProgram.toUpperCase();
 
     const gradYearNum = Number(graduationYear);
+<<<<<<< HEAD
    const resumeFile = formData.get('resume') as File | null;
+=======
+    const resumeFile = formData.get('resume') as File | null;
+>>>>>>> origin/main
 
     if (
       !firstName ||
@@ -649,11 +660,15 @@ export function CurtainApplicationModal({
           password,
           Phone: currentPhone,
           Degree: currentDegree,
+<<<<<<< HEAD
           CollegeName: currentCollege,
           State: currentLocation,
           District: currentDistrict,
           Department: currentDepartment,
           Course: internshipRole,
+=======
+          course: internshipRole,
+>>>>>>> origin/main
           YOG: gradYearNum,
         }),
       });
@@ -692,7 +707,10 @@ export function CurtainApplicationModal({
     } finally {
       setIsSubmitting(false);
     }
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
   };
 
   return (
