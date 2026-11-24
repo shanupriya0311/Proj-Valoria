@@ -9,7 +9,6 @@ type ApplicationPayload = {
   password: string;
   Phone: string;
   Degree: string;
-<<<<<<< HEAD
   Course: string;
   YOG: number;
   State: string;
@@ -17,10 +16,6 @@ type ApplicationPayload = {
   CollegeName: string;
   Department: string;
   
-=======
-  course: string;
-  YOG: number;
->>>>>>> origin/main
 };
 
 function isApplicationPayload(
@@ -39,7 +34,6 @@ function isApplicationPayload(
     typeof payload.password === 'string' &&
     typeof payload.Phone === 'string' &&
     typeof payload.Degree === 'string' &&
-<<<<<<< HEAD
     typeof payload.Course === 'string' &&
     typeof payload.YOG === 'number' &&
     Number.isInteger(payload.YOG) &&
@@ -48,12 +42,6 @@ function isApplicationPayload(
     typeof payload.District === 'string' &&
     typeof payload.CollegeName === 'string' &&
     typeof payload.Department === 'string'
-=======
-    typeof payload.course === 'string' &&
-    typeof payload.YOG === 'number' &&
-    Number.isInteger(payload.YOG) &&
-    payload.YOG > 0
->>>>>>> origin/main
   );
 }
 
@@ -93,17 +81,12 @@ export async function POST(request: Request) {
       password: payload.password,
       Phone: payload.Phone.trim(),
       Degree: payload.Degree.trim(),
-<<<<<<< HEAD
       Course: payload.Course.trim(),
       YOG: payload.YOG,
       State: payload.State.trim(),
       District: payload.District.trim(),
       CollegeName: payload.CollegeName.trim(),
       Department: payload.Department.trim(),  
-=======
-      Course: payload.course.trim(),
-      YOG: payload.YOG,
->>>>>>> origin/main
     };
 
     // 4. Validate required fields
@@ -253,11 +236,39 @@ export async function POST(request: Request) {
     });
 
     // 9. Insert application into Students table
-<<<<<<< HEAD
    // 9. Insert application into Students table
+   console.log('[Internship] Values received from frontend:', {
+  State: payload.State,
+  District: payload.District,
+  CollegeName: payload.CollegeName,
+  Department: payload.Department,
+});
+
+console.log('[Internship] Values being inserted:', {
+  State: studentData.State,
+  District: studentData.District,
+  CollegeName: studentData.CollegeName,
+  Department: studentData.Department,
+});
+// Log all values being inserted into Supabase
+console.log('[Internship] INSERTING STUDENT DATA:', {
+  Firstname: studentData.Firstname,
+  Lastname: studentData.Lastname,
+  email: studentData.email,
+  Phone: studentData.Phone,
+  Degree: studentData.Degree,
+  Course: studentData.Course,
+  YOG: studentData.YOG,
+  State: studentData.State,
+  District: studentData.District,
+  CollegeName: studentData.CollegeName,
+  Department: studentData.Department,
+});
 const { data, error } = await supabase
 
   .from('Students')
+  // Log all values being inserted into Supabase
+   
   .insert(studentData)
   .select(`
     Firstname,
@@ -273,14 +284,13 @@ const { data, error } = await supabase
     Department
   `)
   .single();
-=======
-    const { data, error } = await supabase
-      .from('Students')
-      .insert(studentData)
-      .select('Firstname, Lastname, email, Phone, Degree, Course, YOG')
-      .single();
-
->>>>>>> origin/main
+  // Log values returned by Supabase after insertion
+console.log('[Internship] INSERTED DATA FROM SUPABASE:', {
+  State: data?.State,
+  District: data?.District,
+  CollegeName: data?.CollegeName,
+  Department: data?.Department,
+});
     // 10. Handle database errors
     if (error) {
       console.error('[Internship] Supabase database error:', {
@@ -289,11 +299,7 @@ const { data, error } = await supabase
         details: error.details,
         hint: error.hint,
       });
-<<<<<<< HEAD
 console.log("DATA RECEIVED BY API:", studentData);
-=======
-
->>>>>>> origin/main
       if (error.code === '23505') {
         return NextResponse.json(
           {
